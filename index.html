@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Concato | Production-Ready AI Context Utility</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@300;400;600;700&display=swap"
+    rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #09090b;
+      color: #fafafa;
+    }
+
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #18181b;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #3f3f46;
+      border-radius: 10px;
+    }
+
+    .tab-active {
+      border-bottom: 2px solid #3b82f6;
+      color: #3b82f6;
+    }
+
+    .modal-overlay {
+      background-color: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(4px);
+    }
+
+    /* Custom Tooltip Styling */
+    [title] {
+      position: relative;
+      cursor: help;
+    }
+  </style>
+</head>
+
+<body class="min-h-screen flex flex-col selection:bg-blue-500/30">
+
+  <header class="border-b border-zinc-800 bg-zinc-950/50 backdrop-blur-md sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <div class="bg-blue-600 p-1.5 rounded-lg">
+          <i data-lucide="layers" class="w-6 h-6 text-white"></i>
+        </div>
+        <h1 class="text-xl font-bold tracking-tight">Concato <span
+            class="text-[10px] text-zinc-500 font-mono ml-2 uppercase">v3.0</span></h1>
+      </div>
+      <div class="flex items-center gap-4">
+        <span id="browserWarning"
+          class="hidden px-3 py-1 bg-red-500/10 text-red-400 border border-red-500/20 rounded-full text-[10px] font-bold uppercase">Unsupported
+          Browser</span>
+        <span
+          class="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-xs font-medium"
+          title="All processing happens in your browser's RAM. No files are uploaded to any server.">
+          <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Local-First
+          <i data-lucide="help-circle" class="w-3 h-3 ml-1 opacity-50"></i>
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-grow max-w-7xl mx-auto w-full p-4 md:p-8 space-y-8">
+
+    <section class="bg-gradient-to-br from-zinc-900 to-zinc-950 border border-zinc-800 rounded-2xl p-8 shadow-xl">
+      <div class="max-w-2xl">
+        <h2 class="text-2xl font-bold mb-2">Code to Context in Seconds</h2>
+        <p class="text-zinc-400 text-sm mb-6">Concato intelligently fragments your local codebase for LLMs like GPT-4
+          and Claude 3.</p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="flex items-center gap-3 text-sm font-medium text-zinc-300">
+            <span
+              class="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] border border-zinc-700">1</span>
+            Select Local Folder
+          </div>
+          <div class="flex items-center gap-3 text-sm font-medium text-zinc-300">
+            <span
+              class="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] border border-zinc-700">2</span>
+            Choose AI Prompt
+          </div>
+          <div class="flex items-center gap-3 text-sm font-medium text-zinc-300">
+            <span
+              class="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] border border-zinc-700">3</span>
+            Copy AI-Ready Fragment
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div class="lg:col-span-4 flex flex-col gap-6">
+        <section class="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+          <h2 class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">01. Source</h2>
+          <button id="selectDirBtn"
+            class="w-full flex items-center justify-center gap-2 bg-zinc-100 hover:bg-white text-zinc-900 font-bold py-3 px-4 rounded-lg transition-all active:scale-[0.98]">
+            <i data-lucide="folder-open" class="w-5 h-5"></i>
+            Select Directory
+          </button>
+          <p id="projectName" class="mt-3 text-xs text-zinc-500 text-center italic truncate">Waiting for input...</p>
+        </section>
+
+        <section class="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2" title="Select a predefined instruction template or create your own.">
+              <h2 class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">02. Orchestration</h2>
+              <i data-lucide="help-circle" class="w-3 h-3 text-zinc-600"></i>
+            </div>
+            <button id="newTemplateBtn"
+              class="text-[10px] bg-blue-600/10 text-blue-400 px-2 py-1 rounded hover:bg-blue-600/20 transition-colors">Save
+              As Template</button>
+          </div>
+
+          <select id="templateDropdown"
+            class="w-full bg-zinc-950 border border-zinc-800 rounded-md py-2 px-3 text-xs mb-3 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            <option value="">Custom Prompt</option>
+            <option value="security">🛡️ Security Audit</option>
+            <option value="bug_fix">🐛 Bug Hunter</option>
+            <option value="documentation">📝 Documentation</option>
+            <option value="refactor">⚡ Performance Optimization</option>
+            <option value="unit_test">🧪 Unit Test Generator</option>
+            <option value="logic_breakdown">🧠 Logic Breakdown</option>
+          </select>
+
+          <textarea id="systemPrompt"
+            class="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-xs text-zinc-300 focus:outline-none focus:ring-1 focus:ring-blue-500 h-32 resize-none mono"
+            placeholder="Master Prompt (e.g. Analyze this code for bottlenecks...)"></textarea>
+        </section>
+
+        <section class="bg-zinc-900 border border-zinc-800 rounded-xl flex flex-col h-[300px]">
+          <div class="p-4 border-b border-zinc-800 bg-zinc-900/50 rounded-t-xl">
+            <div class="relative">
+              <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600"></i>
+              <input id="fileSearch" type="text" placeholder="Filter files..."
+                class="w-full bg-zinc-950 border border-zinc-800 rounded-md py-1.5 pl-10 pr-4 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500">
+            </div>
+          </div>
+          <div id="fileList" class="flex-grow overflow-y-auto custom-scrollbar p-2 space-y-1">
+            <p class="text-center text-zinc-700 text-[10px] uppercase tracking-widest mt-12">No project scanned</p>
+          </div>
+        </section>
+      </div>
+
+      <div class="lg:col-span-8 flex flex-col gap-6">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-xl flex flex-col h-[700px] overflow-hidden shadow-2xl">
+          <div class="flex items-center justify-between border-b border-zinc-800 px-4 overflow-x-auto no-scrollbar"
+            id="tabContainer">
+            <div class="py-4 px-4 text-sm text-zinc-600 italic">Waiting for fragments...</div>
+          </div>
+
+          <div class="flex-grow relative bg-zinc-950/20">
+            <textarea id="outputArea"
+              class="w-full h-full bg-transparent p-6 mono text-sm text-zinc-300 resize-none focus:outline-none custom-scrollbar"
+              placeholder="Resulting context will appear here..."></textarea>
+          </div>
+
+          <div class="p-4 border-t border-zinc-800 bg-zinc-900/80 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex gap-6">
+              <div class="flex flex-col" title="Total raw characters in this fragment.">
+                <span
+                  class="text-[10px] uppercase text-zinc-500 font-bold tracking-tighter flex items-center gap-1">Chars
+                  <i data-lucide="help-circle" class="w-2.5 h-2.5"></i></span>
+                <span id="charCount" class="text-sm mono text-blue-400">0</span>
+              </div>
+              <div class="flex flex-col"
+                title="Estimated tokens (approx. 4 chars per token). Useful for managing LLM context windows.">
+                <span
+                  class="text-[10px] uppercase text-zinc-500 font-bold tracking-tighter flex items-center gap-1">Tokens
+                  (est) <i data-lucide="help-circle" class="w-2.5 h-2.5"></i></span>
+                <span id="tokenCount" class="text-sm mono text-emerald-400">0</span>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button id="copyBtn"
+                class="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-all">
+                <i data-lucide="copy" class="w-4 h-4"></i> Copy Fragment
+              </button>
+              <button id="downloadBtn"
+                class="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-all">
+                <i data-lucide="download" class="w-4 h-4"></i> Download
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="border-t border-zinc-800 bg-zinc-950 mt-12 py-12">
+    <div class="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+      <div class="flex flex-col gap-4">
+        <div class="flex items-center gap-2">
+          <div class="bg-zinc-800 p-1 rounded">
+            <i data-lucide="layers" class="w-4 h-4 text-white"></i>
+          </div>
+          <span class="font-bold text-sm">Concato</span>
+        </div>
+        <div class="flex gap-4 text-xs text-zinc-500">
+          <button onclick="toggleModal('aboutModal')"
+            class="hover:text-white transition-colors underline">About</button>
+          <button onclick="toggleModal('privacyModal')" class="hover:text-white transition-colors underline">Privacy
+            Policy</button>
+        </div>
+      </div>
+
+      <div class="flex justify-center">
+        <div id="kofi-container" class="scale-90 opacity-90 hover:opacity-100 transition-opacity">
+          <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
+          <script
+            type='text/javascript'>kofiwidget2.init('Support on Ko-fi', '#2563eb', 'P5P51YD2JY'); kofiwidget2.draw();</script>
+        </div>
+      </div>
+
+      <div class="flex flex-col md:items-end justify-center text-center md:text-right">
+        <p class="text-[10px] mono text-zinc-400 font-bold mb-1 uppercase tracking-tight">
+          © 2026 Concato Dev. All Rights Reserved.
+        </p>
+        <p class="text-[10px] mono text-zinc-600 uppercase">Local Execution // No Server</p>
+      </div>
+    </div>
+  </footer>
+
+  <div id="privacyModal" class="fixed inset-0 z-[60] hidden flex items-center justify-center p-4">
+    <div class="modal-overlay absolute inset-0" onclick="toggleModal('privacyModal')"></div>
+    <div class="bg-zinc-900 border border-zinc-700 w-full max-w-md rounded-2xl p-8 relative z-10">
+      <h2 class="text-xl font-bold mb-4">Privacy Policy</h2>
+      <p class="text-zinc-400 text-sm mb-4 leading-relaxed">Concato uses the Web File System Access API. Your files
+        never leave your browser. Processing occurs entirely in your machine's RAM.</p>
+      <button onclick="toggleModal('privacyModal')"
+        class="w-full bg-zinc-100 text-zinc-900 font-bold py-2 rounded-lg">Understood</button>
+    </div>
+  </div>
+
+  <div id="aboutModal" class="fixed inset-0 z-[60] hidden flex items-center justify-center p-4">
+    <div class="modal-overlay absolute inset-0" onclick="toggleModal('aboutModal')"></div>
+    <div class="bg-zinc-900 border border-zinc-700 w-full max-w-md rounded-2xl p-8 relative z-10">
+      <h2 class="text-xl font-bold mb-4">About Concato</h2>
+      <p class="text-zinc-400 text-sm mb-4 leading-relaxed">Concato (formerly SourceFlow) was built to bridge the gap
+        between complex local codebases and LLM context windows. Optimized for high performance and privacy.</p>
+      <button onclick="toggleModal('aboutModal')"
+        class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg">Close</button>
+    </div>
+  </div>
+
+  <script>
+    const MAX_CHARS = 80000;
+    const EXCLUDED_DIRS = ['node_modules', 'vendor', '.git', 'dist', 'storage', '.next', 'out', 'build'];
+    const EXCLUDED_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.pdf', '.zip', '.exe', '.pyc'];
+
+    // Expanded Template Library
+    const PRESETS = {
+      security: "Analyze this code for security vulnerabilities, SQL injections, or leaked API keys. Suggest immediate fixes.",
+      bug_fix: "Scan this code for logical bugs, potential edge case failures, or race conditions. Suggest corrections with code snippets.",
+      documentation: "Generate clear documentation for this code. Include parameters, return types, and a brief summary of class/function purpose.",
+      refactor: "Rewrite this code for maximum performance, memory efficiency, and readability. Avoid over-engineering.",
+      unit_test: "Generate comprehensive unit tests for this code using a relevant testing framework (e.g., Vitest, Jest, or PHPUnit).",
+      logic_breakdown: "Explain the logic of this code step-by-step as if explaining it to a junior developer. Focus on the 'why' behind the implementation."
+    };
+
+    let allFiles = [];
+    let selectedFiles = new Set();
+    let fragments = [];
+    let activeTabIndex = 0;
+    let projectName = "Project";
+
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      if (!window.showDirectoryPicker) document.getElementById('browserWarning').classList.remove('hidden');
+
+      const savedPrompt = localStorage.getItem('concato_custom_prompt');
+      if (savedPrompt) document.getElementById('systemPrompt').value = savedPrompt;
+    });
+
+    document.getElementById('templateDropdown').addEventListener('change', (e) => {
+      const val = e.target.value;
+      if (val && PRESETS[val]) {
+        document.getElementById('systemPrompt').value = PRESETS[val];
+        processFiles();
+      }
+    });
+
+    document.getElementById('newTemplateBtn').addEventListener('click', () => {
+      const current = document.getElementById('systemPrompt').value;
+      localStorage.setItem('concato_custom_prompt', current);
+      alert("Custom prompt saved as default!");
+    });
+
+    async function scanDirectory() {
+      try {
+        const dirHandle = await window.showDirectoryPicker();
+        projectName = dirHandle.name;
+        document.getElementById('projectName').textContent = projectName;
+        allFiles = [];
+        selectedFiles.clear();
+        await recursiveScan(dirHandle, "");
+        renderFileList();
+        processFiles();
+      } catch (err) { console.warn("Access Denied", err); }
+    }
+
+    async function recursiveScan(dirHandle, path) {
+      for await (const entry of dirHandle.values()) {
+        const entryPath = path ? `${path}/${entry.name}` : entry.name;
+        if (entry.kind === 'directory') {
+          if (!EXCLUDED_DIRS.includes(entry.name)) await recursiveScan(entry, entryPath);
+        } else {
+          const ext = entry.name.substring(entry.name.lastIndexOf('.')).toLowerCase();
+          if (!EXCLUDED_EXTENSIONS.includes(ext)) {
+            const file = await entry.getFile();
+            allFiles.push({ name: entry.name, path: entryPath, handle: file });
+            selectedFiles.add(entryPath);
+          }
+        }
+      }
+    }
+
+    function renderFileList() {
+      const query = document.getElementById('fileSearch').value.toLowerCase();
+      const filtered = allFiles.filter(f => f.path.toLowerCase().includes(query));
+      document.getElementById('fileList').innerHTML = filtered.map(file => `
+                <label class="flex items-center gap-3 p-2 hover:bg-zinc-800 rounded-md cursor-pointer transition-colors group">
+                    <input type="checkbox" ${selectedFiles.has(file.path) ? 'checked' : ''} onchange="toggleFile('${file.path}')" class="w-3 h-3 rounded bg-zinc-950 text-blue-600">
+                    <span class="text-[10px] text-zinc-400 truncate group-hover:text-zinc-200">${file.path}</span>
+                </label>
+            `).join('');
+    }
+
+    function toggleFile(path) {
+      selectedFiles.has(path) ? selectedFiles.delete(path) : selectedFiles.add(path);
+      processFiles();
+    }
+
+    async function processFiles() {
+      let combined = "";
+      const sysPrompt = document.getElementById('systemPrompt').value;
+      const files = allFiles.filter(f => selectedFiles.has(f.path));
+
+      for (const f of files) {
+        const txt = await f.handle.text();
+        combined += `\n\n--- FILE: ${f.path} ---\n${txt}`;
+      }
+
+      fragments = [];
+      if (!combined) { renderTabs(); return; }
+
+      for (let i = 0; i < combined.length; i += MAX_CHARS) {
+        let chunk = combined.substring(i, i + MAX_CHARS);
+        if (sysPrompt) chunk = `SYSTEM INSTRUCTION:\n${sysPrompt}\n\n${chunk}`;
+        fragments.push(chunk);
+      }
+      renderTabs();
+    }
+
+    function renderTabs() {
+      const container = document.getElementById('tabContainer');
+      if (fragments.length === 0) {
+        container.innerHTML = `<div class="py-4 px-4 text-sm text-zinc-600 italic">No fragments generated</div>`;
+        document.getElementById('outputArea').value = "";
+        return;
+      }
+
+      container.innerHTML = fragments.map((_, i) => `
+                <button onclick="switchTab(${i})" class="py-4 px-4 text-xs font-bold transition-all whitespace-nowrap ${activeTabIndex === i ? 'tab-active' : 'text-zinc-500 hover:text-zinc-300'}">
+                    PART ${i + 1}
+                </button>
+            `).join('');
+
+      const content = fragments[activeTabIndex];
+      const header = `--- PART ${activeTabIndex + 1} of ${fragments.length} | Project: ${projectName} ---`;
+      document.getElementById('outputArea').value = `${header}\n${content}`;
+      updateStats(document.getElementById('outputArea').value.length);
+    }
+
+    function switchTab(idx) { activeTabIndex = idx; renderTabs(); }
+
+    function updateStats(len) {
+      document.getElementById('charCount').textContent = len.toLocaleString();
+      document.getElementById('tokenCount').textContent = Math.ceil(len / 4).toLocaleString();
+    }
+
+    function toggleModal(id) { document.getElementById(id).classList.toggle('hidden'); }
+
+    document.getElementById('selectDirBtn').addEventListener('click', scanDirectory);
+    document.getElementById('fileSearch').addEventListener('input', renderFileList);
+    document.getElementById('systemPrompt').addEventListener('input', processFiles);
+
+    document.getElementById('copyBtn').addEventListener('click', async () => {
+      await navigator.clipboard.writeText(document.getElementById('outputArea').value);
+      const btn = document.getElementById('copyBtn');
+      btn.innerText = "✓ Copied!";
+      setTimeout(() => { btn.innerHTML = `<i data-lucide="copy" class="w-4 h-4"></i> Copy Fragment`; lucide.createIcons(); }, 2000);
+    });
+
+    document.getElementById('downloadBtn').addEventListener('click', () => {
+      const blob = new Blob([document.getElementById('outputArea').value], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${projectName}_P${activeTabIndex + 1}.txt`;
+      a.click();
+    });
+  </script>
+</body>
+
+</html>
