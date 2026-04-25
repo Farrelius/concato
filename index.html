@@ -44,10 +44,29 @@
       backdrop-filter: blur(4px);
     }
 
-    /* Custom Tooltip Styling */
     [title] {
       position: relative;
       cursor: help;
+    }
+
+    #stressLineContainer {
+        height: 2px;
+        width: 100%;
+        background: #18181b;
+        position: relative;
+        overflow: visible;
+    }
+    #stressLine {
+        height: 100%;
+        width: 0%;
+        transition: width 0.3s ease, background-color 0.3s ease;
+    }
+    .stress-warning {
+        animation: pulse-red 2s infinite;
+    }
+    @keyframes pulse-red {
+        0%, 100% { box-shadow: 0 0 0px rgba(239, 68, 68, 0); }
+        50% { box-shadow: 0 0 8px rgba(239, 68, 68, 0.5); }
     }
   </style>
 </head>
@@ -159,15 +178,16 @@
 
       <div class="lg:col-span-8 flex flex-col gap-6">
         <div class="bg-zinc-900 border border-zinc-800 rounded-xl flex flex-col h-[700px] overflow-hidden shadow-2xl">
-          <div class="flex items-center justify-between border-b border-zinc-800 px-4 overflow-x-auto no-scrollbar"
-            id="tabContainer">
-            <div class="py-4 px-4 text-sm text-zinc-600 italic">Waiting for fragments...</div>
+          <div class="flex items-center justify-between border-b border-zinc-800 px-4 overflow-x-auto no-scrollbar" id="tabContainer">
+              <div class="py-4 px-4 text-sm text-zinc-600 italic">Waiting for fragments...</div>
           </div>
-
+      
+          <div id="stressLineContainer">
+              <div id="stressLine" title="Fragment Capacity"></div>
+          </div>
+      
           <div class="flex-grow relative bg-zinc-950/20">
-            <textarea id="outputArea"
-              class="w-full h-full bg-transparent p-6 mono text-sm text-zinc-300 resize-none focus:outline-none custom-scrollbar"
-              placeholder="Resulting context will appear here..."></textarea>
+              <textarea id="outputArea" class="w-full h-full bg-transparent p-6 mono text-sm text-zinc-300 resize-none focus:outline-none custom-scrollbar" placeholder="Resulting context will appear here..."></textarea>
           </div>
 
           <div class="p-4 border-t border-zinc-800 bg-zinc-900/80 flex flex-wrap items-center justify-between gap-4">
@@ -263,7 +283,6 @@
     const EXCLUDED_DIRS = ['node_modules', 'vendor', '.git', 'dist', 'storage', '.next', 'out', 'build'];
     const EXCLUDED_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.pdf', '.zip', '.exe', '.pyc'];
 
-    // Expanded Template Library
     const PRESETS = {
       security: "Analyze this code for security vulnerabilities, SQL injections, or leaked API keys. Suggest immediate fixes.",
       bug_fix: "Scan this code for logical bugs, potential edge case failures, or race conditions. Suggest corrections with code snippets.",
@@ -278,6 +297,16 @@
     let fragments = [];
     let activeTabIndex = 0;
     let projectName = "Project";
+
+    // --- FIX 2: DEBOUNCE FUNCTION ---
+    function debounce(func, timeout = 300) {
+      let timer;
+      return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => { func.apply(this, args); }, timeout);
+      };
+    }
+    const debouncedProcess = debounce(() => processFiles());
 
     window.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
@@ -322,8 +351,8 @@
         } else {
           const ext = entry.name.substring(entry.name.lastIndexOf('.')).toLowerCase();
           if (!EXCLUDED_EXTENSIONS.includes(ext)) {
-            const file = await entry.getFile();
-            allFiles.push({ name: entry.name, path: entryPath, handle: file });
+            // --- FIX 3: STORE HANDLE INSTEAD OF SNAPSHOT ---
+            allFiles.push({ name: entry.name, path: entryPath, handle: entry });
             selectedFiles.add(entryPath);
           }
         }
@@ -351,27 +380,69 @@
       const sysPrompt = document.getElementById('systemPrompt').value;
       const files = allFiles.filter(f => selectedFiles.has(f.path));
 
+      // --- FIX 3 (CONT.): FETCH FRESH FILE CONTENT ---
       for (const f of files) {
-        const txt = await f.handle.text();
-        combined += `\n\n--- FILE: ${f.path} ---\n${txt}`;
+        try {
+            const fileObj = await f.handle.getFile();
+            const txt = await fileObj.text();
+            combined += `\n\n--- FILE: ${f.path} ---\n${txt}`;
+        } catch (e) { console.error("Could not read file", f.path); }
       }
 
       fragments = [];
-      if (!combined) { renderTabs(); return; }
+      // --- FIX 1: RESET INDEX ON EMPTY ---
+      if (!combined) { activeTabIndex = 0; renderTabs(); return; }
 
-      for (let i = 0; i < combined.length; i += MAX_CHARS) {
-        let chunk = combined.substring(i, i + MAX_CHARS);
+      // --- FIX 4: SMART SLICING (NEWLINE AWARE) ---
+      for (let i = 0; i < combined.length; ) {
+        let end = i + MAX_CHARS;
+        if (end < combined.length) {
+            const lastNewline = combined.lastIndexOf('\n', end);
+            if (lastNewline > i) end = lastNewline;
+        }
+        let chunk = combined.substring(i, end);
         if (sysPrompt) chunk = `SYSTEM INSTRUCTION:\n${sysPrompt}\n\n${chunk}`;
         fragments.push(chunk);
+        i = end;
+      }
+
+      // --- FIX 1 (CONT.): PREVENT OUT OF BOUNDS ---
+      if (activeTabIndex >= fragments.length) {
+        activeTabIndex = Math.max(0, fragments.length - 1);
       }
       renderTabs();
     }
+
+    function updateStats(len) {
+        document.getElementById('charCount').textContent = len.toLocaleString();
+        document.getElementById('tokenCount').textContent = Math.ceil(len / 4).toLocaleString();
+
+        const stressLine = document.getElementById('stressLine');
+        const percentage = Math.min((len / MAX_CHARS) * 100, 100);
+        const hue = 120 - (120 * (percentage / 100));
+        
+        stressLine.style.width = `${percentage}%`;
+        stressLine.style.backgroundColor = `hsl(${hue}, 80%, 50%)`;
+
+        if (percentage > 85) {
+            stressLine.classList.add('stress-warning');
+            stressLine.title = "Large fragment detected. Consider splitting to prevent AI lag.";
+        } else {
+            stressLine.classList.remove('stress-warning');
+            stressLine.title = `${Math.round(percentage)}% of fragment capacity used.`;
+        }
+    }
+
+    document.getElementById('outputArea').addEventListener('input', (e) => {
+        updateStats(e.target.value.length);
+    });
 
     function renderTabs() {
       const container = document.getElementById('tabContainer');
       if (fragments.length === 0) {
         container.innerHTML = `<div class="py-4 px-4 text-sm text-zinc-600 italic">No fragments generated</div>`;
         document.getElementById('outputArea').value = "";
+        updateStats(0);
         return;
       }
 
@@ -388,17 +459,12 @@
     }
 
     function switchTab(idx) { activeTabIndex = idx; renderTabs(); }
-
-    function updateStats(len) {
-      document.getElementById('charCount').textContent = len.toLocaleString();
-      document.getElementById('tokenCount').textContent = Math.ceil(len / 4).toLocaleString();
-    }
-
     function toggleModal(id) { document.getElementById(id).classList.toggle('hidden'); }
 
     document.getElementById('selectDirBtn').addEventListener('click', scanDirectory);
     document.getElementById('fileSearch').addEventListener('input', renderFileList);
-    document.getElementById('systemPrompt').addEventListener('input', processFiles);
+    // --- FIX 2 (CONT.): USE DEBOUNCED VERSION ---
+    document.getElementById('systemPrompt').addEventListener('input', debouncedProcess);
 
     document.getElementById('copyBtn').addEventListener('click', async () => {
       await navigator.clipboard.writeText(document.getElementById('outputArea').value);
