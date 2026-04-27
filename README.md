@@ -19,13 +19,13 @@ Why it matters: This allows the tool to maintain a handle on your local director
 2. Smart Fragment Slicing
 The code uses a newline-aware slicing logic to prevent breaking functions or logic blocks mid-sentence:
 
-JavaScript
+```JavaScript
 // Smart slicing logic
 let end = i + MAX_CHARS;
 if (end < combined.length) {
     const lastNewline = combined.lastIndexOf('\n', end);
     if (lastNewline > i) end = lastNewline; // Ensure we don't cut a line in half
-}
+}`
 
 3. Dynamic "Stress Line" Indicator
 The UI features a visual capacity bar (#stressLine) that changes color based on the fragment size relative to the MAX_CHARS limit (80,000 characters).
