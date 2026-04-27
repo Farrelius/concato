@@ -25,7 +25,8 @@ let end = i + MAX_CHARS;
 if (end < combined.length) {
     const lastNewline = combined.lastIndexOf('\n', end);
     if (lastNewline > i) end = lastNewline; // Ensure we don't cut a line in half
-}`
+}
+```
 
 3. Dynamic "Stress Line" Indicator
 The UI features a visual capacity bar (#stressLine) that changes color based on the fragment size relative to the MAX_CHARS limit (80,000 characters).
