@@ -63,7 +63,8 @@ Token Estimation: Uses a 1:4 ratio (Characters to Tokens) to provide a safe esti
 💻 Local Development
 To run this locally, simply clone the repo and open index.html in a modern browser (Chrome/Edge recommended for File System API support).
 
-Bash
+```Bash
 git clone https://github.com/Farrelius/concato.git
 cd concato
+```
 # No installation required - Pure HTML/JS/Tailwind
