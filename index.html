@@ -50,23 +50,33 @@
     }
 
     #stressLineContainer {
-        height: 2px;
-        width: 100%;
-        background: #18181b;
-        position: relative;
-        overflow: visible;
+      height: 2px;
+      width: 100%;
+      background: #18181b;
+      position: relative;
+      overflow: visible;
     }
+
     #stressLine {
-        height: 100%;
-        width: 0%;
-        transition: width 0.3s ease, background-color 0.3s ease;
+      height: 100%;
+      width: 0%;
+      transition: width 0.3s ease, background-color 0.3s ease;
     }
+
     .stress-warning {
-        animation: pulse-red 2s infinite;
+      animation: pulse-red 2s infinite;
     }
+
     @keyframes pulse-red {
-        0%, 100% { box-shadow: 0 0 0px rgba(239, 68, 68, 0); }
-        50% { box-shadow: 0 0 8px rgba(239, 68, 68, 0.5); }
+
+      0%,
+      100% {
+        box-shadow: 0 0 0px rgba(239, 68, 68, 0);
+      }
+
+      50% {
+        box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+      }
     }
   </style>
 </head>
@@ -178,16 +188,19 @@
 
       <div class="lg:col-span-8 flex flex-col gap-6">
         <div class="bg-zinc-900 border border-zinc-800 rounded-xl flex flex-col h-[700px] overflow-hidden shadow-2xl">
-          <div class="flex items-center justify-between border-b border-zinc-800 px-4 overflow-x-auto no-scrollbar" id="tabContainer">
-              <div class="py-4 px-4 text-sm text-zinc-600 italic">Waiting for fragments...</div>
+          <div class="flex items-center justify-between border-b border-zinc-800 px-4 overflow-x-auto no-scrollbar"
+            id="tabContainer">
+            <div class="py-4 px-4 text-sm text-zinc-600 italic">Waiting for fragments...</div>
           </div>
-      
+
           <div id="stressLineContainer">
-              <div id="stressLine" title="Fragment Capacity"></div>
+            <div id="stressLine" title="Fragment Capacity"></div>
           </div>
-      
+
           <div class="flex-grow relative bg-zinc-950/20">
-              <textarea id="outputArea" class="w-full h-full bg-transparent p-6 mono text-sm text-zinc-300 resize-none focus:outline-none custom-scrollbar" placeholder="Resulting context will appear here..."></textarea>
+            <textarea id="outputArea"
+              class="w-full h-full bg-transparent p-6 mono text-sm text-zinc-300 resize-none focus:outline-none custom-scrollbar"
+              placeholder="Resulting context will appear here..."></textarea>
           </div>
 
           <div class="p-4 border-t border-zinc-800 bg-zinc-900/80 flex flex-wrap items-center justify-between gap-4">
@@ -297,6 +310,7 @@
     let fragments = [];
     let activeTabIndex = 0;
     let projectName = "Project";
+    let folderStates = {};
 
     // --- FIX 2: DEBOUNCE FUNCTION ---
     function debounce(func, timeout = 300) {
@@ -360,14 +374,80 @@
     }
 
     function renderFileList() {
+      const fileList = document.getElementById('fileList');
+      if (allFiles.length === 0) {
+        fileList.innerHTML = `<p class="text-center text-zinc-700 text-[10px] uppercase tracking-widest mt-12">No project scanned</p>`;
+        return;
+      }
+
+      // Kelompokkan file berdasarkan folder
+      const tree = {};
       const query = document.getElementById('fileSearch').value.toLowerCase();
-      const filtered = allFiles.filter(f => f.path.toLowerCase().includes(query));
-      document.getElementById('fileList').innerHTML = filtered.map(file => `
-                <label class="flex items-center gap-3 p-2 hover:bg-zinc-800 rounded-md cursor-pointer transition-colors group">
-                    <input type="checkbox" ${selectedFiles.has(file.path) ? 'checked' : ''} onchange="toggleFile('${file.path}')" class="w-3 h-3 rounded bg-zinc-950 text-blue-600">
-                    <span class="text-[10px] text-zinc-400 truncate group-hover:text-zinc-200">${file.path}</span>
-                </label>
-            `).join('');
+
+      allFiles.forEach(file => {
+        if (!file.path.toLowerCase().includes(query)) return;
+
+        const parts = file.path.split('/');
+        const fileName = parts.pop();
+        const folderPath = parts.join('/') || 'Root';
+
+        if (!tree[folderPath]) tree[folderPath] = [];
+        tree[folderPath].push({ ...file, fileName });
+      });
+
+      fileList.innerHTML = Object.keys(tree).map(folder => {
+        const isCollapsed = folderStates[folder] === false;
+        const folderFiles = tree[folder];
+        const allChecked = folderFiles.every(f => selectedFiles.has(f.path));
+        const someChecked = folderFiles.some(f => selectedFiles.has(f.path)) && !allChecked;
+
+        return `
+            <div class="mb-2">
+                <div class="flex items-center gap-2 p-1.5 hover:bg-zinc-800/50 rounded group">
+                    <button onclick="toggleFolderCollapse('${folder}')" class="text-zinc-500 hover:text-white">
+                        <i data-lucide="${isCollapsed ? 'chevron-right' : 'chevron-down'}" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <input type="checkbox" ${allChecked ? 'checked' : ''} 
+                        class="w-3 h-3 rounded bg-zinc-950 text-blue-600 ${someChecked ? 'opacity-50' : ''}"
+                        onchange="toggleFolderGroup('${folder}', this.checked)">
+                    <span class="text-[11px] font-bold text-zinc-300 truncate cursor-pointer" onclick="toggleFolderCollapse('${folder}')">
+                        ${folder}
+                    </span>
+                </div>
+                
+                <div class="${isCollapsed ? 'hidden' : 'block'} ml-6 mt-1 space-y-1 border-l border-zinc-800">
+                    ${folderFiles.map(file => `
+                        <label class="flex items-center gap-3 p-1 pl-4 hover:bg-zinc-800 rounded-md cursor-pointer transition-colors group">
+                            <input type="checkbox" ${selectedFiles.has(file.path) ? 'checked' : ''} 
+                                onchange="toggleFile('${file.path}')" 
+                                class="w-3 h-3 rounded bg-zinc-950 text-blue-600">
+                            <span class="text-[10px] text-zinc-500 truncate group-hover:text-zinc-200">${file.fileName}</span>
+                        </label>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    // Fungsi bantu untuk Folder
+    function toggleFolderCollapse(folder) {
+      folderStates[folder] = folderStates[folder] === false;
+      renderFileList();
+    }
+
+    function toggleFolderGroup(folder, isChecked) {
+      allFiles.forEach(file => {
+        const parts = file.path.split('/');
+        const currentFolderPath = parts.slice(0, -1).join('/') || 'Root';
+        if (currentFolderPath === folder) {
+          isChecked ? selectedFiles.add(file.path) : selectedFiles.delete(file.path);
+        }
+      });
+      renderFileList();
+      processFiles();
     }
 
     function toggleFile(path) {
@@ -383,9 +463,9 @@
       // --- FIX 3 (CONT.): FETCH FRESH FILE CONTENT ---
       for (const f of files) {
         try {
-            const fileObj = await f.handle.getFile();
-            const txt = await fileObj.text();
-            combined += `\n\n--- FILE: ${f.path} ---\n${txt}`;
+          const fileObj = await f.handle.getFile();
+          const txt = await fileObj.text();
+          combined += `\n\n--- FILE: ${f.path} ---\n${txt}`;
         } catch (e) { console.error("Could not read file", f.path); }
       }
 
@@ -394,11 +474,11 @@
       if (!combined) { activeTabIndex = 0; renderTabs(); return; }
 
       // --- FIX 4: SMART SLICING (NEWLINE AWARE) ---
-      for (let i = 0; i < combined.length; ) {
+      for (let i = 0; i < combined.length;) {
         let end = i + MAX_CHARS;
         if (end < combined.length) {
-            const lastNewline = combined.lastIndexOf('\n', end);
-            if (lastNewline > i) end = lastNewline;
+          const lastNewline = combined.lastIndexOf('\n', end);
+          if (lastNewline > i) end = lastNewline;
         }
         let chunk = combined.substring(i, end);
         if (sysPrompt) chunk = `SYSTEM INSTRUCTION:\n${sysPrompt}\n\n${chunk}`;
@@ -414,27 +494,27 @@
     }
 
     function updateStats(len) {
-        document.getElementById('charCount').textContent = len.toLocaleString();
-        document.getElementById('tokenCount').textContent = Math.ceil(len / 4).toLocaleString();
+      document.getElementById('charCount').textContent = len.toLocaleString();
+      document.getElementById('tokenCount').textContent = Math.ceil(len / 4).toLocaleString();
 
-        const stressLine = document.getElementById('stressLine');
-        const percentage = Math.min((len / MAX_CHARS) * 100, 100);
-        const hue = 120 - (120 * (percentage / 100));
-        
-        stressLine.style.width = `${percentage}%`;
-        stressLine.style.backgroundColor = `hsl(${hue}, 80%, 50%)`;
+      const stressLine = document.getElementById('stressLine');
+      const percentage = Math.min((len / MAX_CHARS) * 100, 100);
+      const hue = 120 - (120 * (percentage / 100));
 
-        if (percentage > 85) {
-            stressLine.classList.add('stress-warning');
-            stressLine.title = "Large fragment detected. Consider splitting to prevent AI lag.";
-        } else {
-            stressLine.classList.remove('stress-warning');
-            stressLine.title = `${Math.round(percentage)}% of fragment capacity used.`;
-        }
+      stressLine.style.width = `${percentage}%`;
+      stressLine.style.backgroundColor = `hsl(${hue}, 80%, 50%)`;
+
+      if (percentage > 85) {
+        stressLine.classList.add('stress-warning');
+        stressLine.title = "Large fragment detected. Consider splitting to prevent AI lag.";
+      } else {
+        stressLine.classList.remove('stress-warning');
+        stressLine.title = `${Math.round(percentage)}% of fragment capacity used.`;
+      }
     }
 
     document.getElementById('outputArea').addEventListener('input', (e) => {
-        updateStats(e.target.value.length);
+      updateStats(e.target.value.length);
     });
 
     function renderTabs() {
